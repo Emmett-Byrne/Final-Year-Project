@@ -15,6 +15,11 @@ void Tile::setPosition(Position pos)
 	position = pos;
 }
 
+Position Tile::getPosition()
+{
+	return position;
+}
+
 void Tile::setType(int val)
 {
 	type = val;
@@ -44,6 +49,11 @@ void Tile::setType(int val)
 	default:
 		break;
 	}
+}
+
+int Tile::getType()
+{
+	return type;
 }
 
 Tile* Tile::Up()

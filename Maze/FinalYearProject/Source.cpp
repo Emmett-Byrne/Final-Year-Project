@@ -33,12 +33,16 @@ int main(int argc, char* argv[])
 				switch (event.key.keysym.sym)
 				{
 				case SDLK_UP:
-					break;
-				case SDLK_DOWN:
+					grid.movePlayer(0);
 					break;
 				case SDLK_LEFT:
+					grid.movePlayer(1);
 					break;
 				case SDLK_RIGHT:
+					grid.movePlayer(2);
+					break;
+				case SDLK_DOWN:
+					grid.movePlayer(3);
 					break;
 				case SDLK_ESCAPE:
 					isRunning = false;
