@@ -76,9 +76,13 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\devtools\SDL\SDL2-devel-2.0.10-VC\SDL2-2.0.10\include</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
+      <AdditionalLibraryDirectories>C:\devtools\SDL\SDL2-devel-2.0.10-VC\SDL2-2.0.10\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2main.lib;SDL2.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -87,9 +91,13 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\devtools\SDL\SDL2-devel-2.0.10-VC\SDL2-2.0.10\include</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
+      <AdditionalLibraryDirectories>C:\devtools\SDL\SDL2-devel-2.0.10-VC\SDL2-2.0.10\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2main.lib;SDL2.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -123,6 +131,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Grid.cpp" />
+    <ClCompile Include="Position.cpp" />
+    <ClCompile Include="Source.cpp" />
+    <ClCompile Include="Tile.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Grid.h" />
+    <ClInclude Include="Position.h" />
+    <ClInclude Include="Tile.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
