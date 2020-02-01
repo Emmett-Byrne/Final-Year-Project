@@ -11,6 +11,7 @@ public:
 	void movePlayer(int direction);
 	Tile* findAtPosition(Position pos);
 	void render(SDL_Renderer* renderer);
+	void renderNetworkVision(SDL_Renderer* renderer);
 private:
 	void generateTiles(int width, int height);
 	void randomizeTiles();

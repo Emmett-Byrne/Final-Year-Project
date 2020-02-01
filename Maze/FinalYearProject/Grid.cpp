@@ -33,6 +33,41 @@ void Grid::render(SDL_Renderer* renderer)
 	renderPlayer(renderer);
 }
 
+void Grid::renderNetworkVision(SDL_Renderer* renderer)
+{
+	std::vector<Tile*> renderList;
+	renderList.push_back(player);
+
+	std::vector<Tile*>* playerNeighbours = player->getNeightbours();
+
+	for (int i = 0; i < playerNeighbours->size(); i++)
+	{
+		if (playerNeighbours->at(i) != NULL)
+		{
+			renderList.push_back(playerNeighbours->at(i));
+			std::vector<Tile*>* neighbourNeighbours = playerNeighbours->at(i)->getNeightbours();
+
+			for (int i = 0; i < neighbourNeighbours->size(); i++)
+			{
+				if (!(std::find(renderList.begin(), renderList.end(), neighbourNeighbours->at(i)) != renderList.end()))
+				{
+					if (neighbourNeighbours->at(i) != NULL)
+					{
+						renderList.push_back(neighbourNeighbours->at(i));
+					}
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < renderList.size(); i++)
+	{
+		renderList[i]->render(renderer, tileSize);
+	}
+
+	renderPlayer(renderer);
+}
+
 void Grid::generateTiles(int width, int height)
 {
 	for (int i = 0; i < height; i++)
