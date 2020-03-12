@@ -41,12 +41,12 @@ class World:
         
     def randomTile(self):
 
-        normalChance = 10   #0 - plains
-        wallChance = 4      #1 - walls
-        swampChance = 2     #2 - swamp
-        sandChance = 3      #3 - sand
-        forestChance = 1    #4 - forest
-        lavaChance = 1      #5 - lava
+        normalChance = 50   #0 - plains
+        wallChance = 1      #1 - walls
+        swampChance = 0     #2 - swamp
+        sandChance = 0      #3 - sand
+        forestChance = 0    #4 - forest
+        lavaChance = 0      #5 - lava
 
         randomNum = random.randint(0, normalChance + wallChance + sandChance + swampChance + forestChance + lavaChance - 1)
         
@@ -112,7 +112,11 @@ class World:
         self.clearStart()
         self.setWorldBounds()
 
-        return np.array(self.getLongSight(), dtype=np.float32)
+        observation = self.getLongSight()
+        observation.append(self.playerX)
+        observation.append(self.playerY)
+
+        return np.array(observation, dtype=np.float32)
 
     def step(self, action, render):
         previous = self.remainingMoves
@@ -130,6 +134,8 @@ class World:
             reward = 100
         info = {}
         observation = self.getLongSight()
+        observation.append(self.playerX)
+        observation.append(self.playerY)
 
         if render:
             self.render()
@@ -171,12 +177,12 @@ class World:
         if moved:
             tile = self.grid[self.playerY][self.playerX]
             if tile == 0:
-                self.remainingMoves -= 10
+                self.remainingMoves -= 1
             if tile == 1:
-                self.remainingMoves -= 0
+                self.remainingMoves -= 1
                 self.playerX = previousX
                 self.playerY = previousY
-                reward = -10
+                reward = -2
             if tile == 2 or tile == 4:
                 self.remainingMoves -= 3
                 reward = 1
@@ -263,7 +269,7 @@ class World:
 pygame.init()
 world = World(50,20)
 scores = []
-nn = Agent(gamma=0.99, epsilon=0.995, alpha=0.00005, inputDims=13,
+nn = Agent(gamma=0.99, epsilon=0.995, alpha=0.00005, inputDims=15,
                   numActions=4, memorySize=1000000, batchSize=64, epsilonMin=0.1)
 
 for i in range(500):
@@ -280,7 +286,7 @@ for i in range(500):
             nn.remember(observation, action, reward, observation_, int(done))
             observation = observation_
             nn.learn()
-        00
+        
         scores.append(score)
 
         avg_score = np.mean(scores[max(0, i-100):(i+1)])

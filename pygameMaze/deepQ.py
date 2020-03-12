@@ -45,8 +45,6 @@ def createDeepQ(learningRate, numActions, inputDims, layer1Dims, layer2Dims):
     model = Sequential([
         Dense(layer1Dims, input_shape=(inputDims,)),
         Activation('relu'),
-        Dense(layer2Dims),
-        Activation('relu'),
         Dense(numActions)
     ])
     model.compile(optimizer=Adam(lr=learningRate), loss='mse')
