@@ -2,6 +2,7 @@ import pygame
 import math
 import random
 import numpy as np
+from deepQ import Agent
 
 class World:
 
@@ -12,7 +13,7 @@ class World:
         self.height = height
         self.tileSize = 20
         self.actionsTaken = 0
-        self.remainingMoves = math.trunc(self.width * 5)
+        self.remainingMoves = math.trunc(self.width * 5 + self.height)
         
         #player data
         self.playerX = math.trunc(2)
@@ -44,8 +45,8 @@ class World:
         wallChance = 4      #1 - walls
         swampChance = 2     #2 - swamp
         sandChance = 3      #3 - sand
-        forestChance = 2    #4 - forest
-        lavaChance = 2      #5 - lava
+        forestChance = 1    #4 - forest
+        lavaChance = 1      #5 - lava
 
         randomNum = random.randint(0, normalChance + wallChance + sandChance + swampChance + forestChance + lavaChance - 1)
         
@@ -92,14 +93,48 @@ class World:
             self.handkeInput()
 
             self.render()
-            print(self.getLongSight())
             if self.playerX == self.goalX and self.playerY == self.goalY:
                 running = False #VICTORY!!!!
 
-    def step(self, action):
+    def reset(self):
+        self.actionsTaken = 0
+        self.remainingMoves = math.trunc(self.width * 5+ self.height)
+        
+        #player data
+        self.playerX = math.trunc(2)
+        self.playerY = math.trunc(self.height / 2)
+        
+        #goal data
+        self.goalX = math.trunc(self.width - 3)
+        self.goalY = math.trunc(self.height / 2)
+
+        self.generateWorld()
+        self.clearStart()
+        self.setWorldBounds()
+
+        return np.array(self.getLongSight(), dtype=np.float32)
+
+    def step(self, action, render):
         previous = self.remainingMoves
-        self.move(action)
-        movePointsUsed = self.remainingMoves - previous
+        previousDistance = self.distanceToGoal()
+        moveReward = self.move(action)
+        distanceReward = -(self.distanceToGoal() - previousDistance)
+        reward = distanceReward + moveReward
+
+        done = False
+        if self.remainingMoves < 0:
+            done = True
+            reward = -100
+        if self.playerY == self.goalY and self.playerX == self.goalX:
+            done = True
+            reward = 100
+        info = {}
+        observation = self.getLongSight()
+
+        if render:
+            self.render()
+
+        return np.array(observation, dtype=np.float32), reward, done, info
 
     def handkeInput(self):
         keys = pygame.key.get_pressed()
@@ -132,20 +167,32 @@ class World:
             self.playerX += 1
             moved = True
 
+        reward = 0
         if moved:
             tile = self.grid[self.playerY][self.playerX]
             if tile == 0:
-                self.remainingMoves -= 0
+                self.remainingMoves -= 10
             if tile == 1:
                 self.remainingMoves -= 0
                 self.playerX = previousX
                 self.playerY = previousY
+                reward = -10
             if tile == 2 or tile == 4:
                 self.remainingMoves -= 3
+                reward = 1
             if tile == 3:
                 self.remainingMoves -= 2
+                reward = 5
             if tile == 5:
                 self.remainingMoves -= 999
+                reward = -100
+
+        return reward
+
+    def distanceToGoal(self):
+        distanceX = self.goalX - self.playerX
+        distanceY = self.goalY - self.playerY
+        return math.sqrt(distanceX * distanceX + distanceY * distanceY)
 
     def render(self):
         for x in range(self.height):
@@ -185,7 +232,7 @@ class World:
                                                     self.tileSize * 0.7,self.tileSize * 0.7))
 
     #Get data for Neural Network
-    def getShortSight(self):
+    def getShortSight(self): #5
         sight = [
             self.grid[self.playerY - 1][self.playerX],
             self.grid[self.playerY][self.playerX - 1],
@@ -195,7 +242,7 @@ class World:
         ]
         return sight
         
-    def getLongSight(self):
+    def getLongSight(self): #13
         sight = [
             self.grid[self.playerY - 2][self.playerX],
             self.grid[self.playerY - 1][self.playerX - 1],
@@ -215,4 +262,29 @@ class World:
 
 pygame.init()
 world = World(50,20)
+scores = []
+nn = Agent(gamma=0.99, epsilon=0.995, alpha=0.00005, inputDims=13,
+                  numActions=4, memorySize=1000000, batchSize=64, epsilonMin=0.1)
+
+for i in range(500):
+        done = False
+        score = 0
+        observation = world.reset()
+        while not done:
+            action = nn.chooseAction(observation) #action = whole number
+            observation_, reward, done, info = world.step(action, True) #observations = array of elements between 0 and 1
+                                                                #reward = floating point val ,negative = bad, positive = good, range = -100 to 100
+                                                                #done = boolean(gets converted to int)
+            score += reward
+            print(reward)
+            nn.remember(observation, action, reward, observation_, int(done))
+            observation = observation_
+            nn.learn()
+        00
+        scores.append(score)
+
+        avg_score = np.mean(scores[max(0, i-100):(i+1)])
+        print('episode: ', i,'score: %.2f' % score,
+              ' average score %.2f' % avg_score)
+
 world.run()

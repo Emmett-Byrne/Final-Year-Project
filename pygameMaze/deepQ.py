@@ -18,7 +18,7 @@ class ReplayBuffer(object):
     def storeTransitions(self, state, action, reward, newState, done):
         index = self.memoryCounter % self.memorySize #if we go over the max size of our memory we will overwriting old memory
         self.stateMemory[index] = state
-        self.newStateMemory = newState
+        self.newStateMemory[index] = newState
         if self.discrete:
             actions = np.zeros(self.actionMemory.shape[1])
             actions[action] = 1.0
