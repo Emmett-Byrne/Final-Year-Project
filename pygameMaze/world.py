@@ -2,6 +2,7 @@ import pygame
 import math
 import random
 import numpy as np
+import matplotlib.pyplot as graph
 from deepQ import Agent
 
 class World:
@@ -13,7 +14,7 @@ class World:
         self.height = height
         self.tileSize = 20
         self.actionsTaken = 0
-        self.remainingMoves = math.trunc(self.width * 5 + self.height)
+        self.remainingMoves = math.trunc(self.width * 10 + self.height)
         
         #player data
         self.playerX = math.trunc(2)
@@ -29,20 +30,17 @@ class World:
         self.font = pygame.font.SysFont('Ariel', 30)
         self.display = pygame.display.set_mode((self.width * self.tileSize, self.height * self.tileSize))
         self.grid = [[0 for i in range(width)] for j in range(height)]
-        self.generateWorld()
-        self.clearStart()
-        self.setWorldBounds()
 
-    def generateWorld(self):
+    def generateWorld(self, dificulty):
 
         for y in range(self.height):
             for x in range(self.width):
-                self.grid[y][x] = self.randomTile()
+                self.grid[y][x] = self.randomTile(dificulty)
         
-    def randomTile(self):
+    def randomTile(self, dificulty):
 
-        normalChance = 50   #0 - plains
-        wallChance = 1      #1 - walls
+        normalChance = 100 - dificulty * 3   #0 - plains
+        wallChance = dificulty * 3      #1 - walls
         swampChance = 0     #2 - swamp
         sandChance = 0      #3 - sand
         forestChance = 0    #4 - forest
@@ -96,9 +94,9 @@ class World:
             if self.playerX == self.goalX and self.playerY == self.goalY:
                 running = False #VICTORY!!!!
 
-    def reset(self):
+    def reset(self, dificulty):
         self.actionsTaken = 0
-        self.remainingMoves = math.trunc(self.width * 5+ self.height)
+        self.remainingMoves = math.trunc(self.width * 10 + self.height)
         
         #player data
         self.playerX = math.trunc(2)
@@ -108,7 +106,7 @@ class World:
         self.goalX = math.trunc(self.width - 3)
         self.goalY = math.trunc(self.height / 2)
 
-        self.generateWorld()
+        self.generateWorld(dificulty)
         self.clearStart()
         self.setWorldBounds()
 
@@ -137,12 +135,17 @@ class World:
         observation.append(self.playerX)
         observation.append(self.playerY)
 
+        for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    done = True
+
         if render:
             self.render()
 
         return np.array(observation, dtype=np.float32), reward, done, info
 
     def handkeInput(self):
+        previousDistance = self.distanceToGoal()
         keys = pygame.key.get_pressed()
         if keys[pygame.K_w]:
             self.move(0)
@@ -152,6 +155,10 @@ class World:
             self.move(2)
         if keys[pygame.K_d]:
             self.move(3)
+        
+        distanceReward = -(self.distanceToGoal() - previousDistance)
+        if distanceReward != 0:
+            print(distanceReward)
 
     def move(self, direction):
         self.actionsTaken += 1
@@ -266,31 +273,37 @@ class World:
         ]
         return sight
 
-pygame.init()
-world = World(50,20)
-scores = []
-nn = Agent(gamma=0.99, epsilon=0.995, alpha=0.00005, inputDims=15,
-                  numActions=4, memorySize=1000000, batchSize=64, epsilonMin=0.1)
+def run():
+    pygame.init()
+    world = World(50,20)
+    world.reset(0)
 
-for i in range(500):
-        done = False
-        score = 0
-        observation = world.reset()
-        while not done:
-            action = nn.chooseAction(observation) #action = whole number
-            observation_, reward, done, info = world.step(action, True) #observations = array of elements between 0 and 1
-                                                                #reward = floating point val ,negative = bad, positive = good, range = -100 to 100
-                                                                #done = boolean(gets converted to int)
-            score += reward
-            print(reward)
-            nn.remember(observation, action, reward, observation_, int(done))
-            observation = observation_
-            nn.learn()
-        
-        scores.append(score)
+    #world.run()
 
-        avg_score = np.mean(scores[max(0, i-100):(i+1)])
-        print('episode: ', i,'score: %.2f' % score,
-              ' average score %.2f' % avg_score)
+    scores = []
+    nn = Agent(gamma=0.99, epsilon=0.995, alpha=0.00005, inputDims=15,
+                    numActions=4, memorySize=1000000, batchSize=64, epsilonMin=0.1)
 
-world.run()
+    for i in range(5000):
+            done = False
+            score = 0
+            observation = world.reset(4)
+            while not done:
+                action = nn.chooseAction(observation)                       #action = whole number
+                observation_, reward, done, info = world.step(action, True) #observations = array of elements between 0 and 1
+                                                                            #reward = floating point val ,negative = bad, positive = good
+                                                                            #done = boolean
+                score += reward
+                print(reward)
+                nn.remember(observation, action, reward, observation_, int(done))
+                observation = observation_
+                nn.learn()
+            
+            scores.append(score)
+
+            avg_score = np.mean(scores[max(0, i-100):(i+1)])
+            print('episode: ', i,'score: %.2f' % score,
+                ' average score %.2f' % avg_score)
+
+    graph.plot(range(1, len(scores) + 1),scores)
+    graph.show()

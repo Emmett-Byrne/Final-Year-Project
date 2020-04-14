@@ -4,95 +4,111 @@ from keras.optimizers import Adam
 import numpy as np
 
 class ReplayBuffer(object):
-    def __init__(self, memorySize, inputShape, numActions, discrete=False):
-        self.memorySize = memorySize 
-        self.memoryCounter = 0
+    def __init__(self, max_size, input_shape, n_actions, discrete=False):
+        self.mem_size = max_size
+        self.mem_cntr = 0
         self.discrete = discrete
-        self.stateMemory = np.zeros((self.memorySize, inputShape))
-        self.newStateMemory = np.zeros((self.memorySize, inputShape))
+        self.state_memory = np.zeros((self.mem_size, input_shape))
+        self.new_state_memory = np.zeros((self.mem_size, input_shape))
         dtype = np.int8 if self.discrete else np.float32
-        self.actionMemory = np.zeros((self.memorySize, numActions), dtype=dtype)
-        self.rewardMemory = np.zeros((self.memorySize))
-        self.terminalMemory = np.zeros(self.memorySize, dtype=np.float32)
+        self.action_memory = np.zeros((self.mem_size, n_actions), dtype=dtype)
+        self.reward_memory = np.zeros(self.mem_size)
+        self.terminal_memory = np.zeros(self.mem_size, dtype=np.float32)
 
-    def storeTransitions(self, state, action, reward, newState, done):
-        index = self.memoryCounter % self.memorySize #if we go over the max size of our memory we will overwriting old memory
-        self.stateMemory[index] = state
-        self.newStateMemory[index] = newState
+    def store_transition(self, state, action, reward, state_, done):
+        index = self.mem_cntr % self.mem_size
+        self.state_memory[index] = state
+        self.new_state_memory[index] = state_
+        # store one hot encoding of actions, if appropriate
         if self.discrete:
-            actions = np.zeros(self.actionMemory.shape[1])
+            actions = np.zeros(self.action_memory.shape[1])
             actions[action] = 1.0
-            self.actionMemory[index] = actions
+            self.action_memory[index] = actions
         else:
-            self.actionMemory[index] = actions
-        self.rewardMemory[index] = reward
-        self.terminalMemory[index] = 1 - done
-        self.memoryCounter +=1
-    
-    def sampleBuffer(self, batchSize): #fill memory
-        maxMemory = min(self.memoryCounter, self.memorySize)
-        batch = np.random.choice(maxMemory, batchSize)
+            self.action_memory[index] = action
+        self.reward_memory[index] = reward
+        self.terminal_memory[index] = 1 - done
+        self.mem_cntr += 1
 
-        states = self.stateMemory[batch]
-        actions = self.actionMemory[batch]
-        rewards = self.rewardMemory[batch]
-        newStates = self.newStateMemory[batch]
-        terminal = self.terminalMemory[batch]
+    def sample_buffer(self, batch_size):
+        max_mem = min(self.mem_cntr, self.mem_size)
+        batch = np.random.choice(max_mem, batch_size)
 
-        return states, actions, rewards, newStates, terminal
+        states = self.state_memory[batch]
+        actions = self.action_memory[batch]
+        rewards = self.reward_memory[batch]
+        states_ = self.new_state_memory[batch]
+        terminal = self.terminal_memory[batch]
 
-def createDeepQ(learningRate, numActions, inputDims, layer1Dims, layer2Dims):
+        return states, actions, rewards, states_, terminal
+
+def build_dqn(lr, n_actions, input_dims, fc1_dims, fc2_dims):
     model = Sequential([
-        Dense(layer1Dims, input_shape=(inputDims,)),
-        Activation('relu'),
-        Dense(numActions)
-    ])
-    model.compile(optimizer=Adam(lr=learningRate), loss='mse')
+                Dense(fc1_dims, input_shape=(input_dims,)),
+                Activation('relu'),
+                Dense(fc2_dims),
+                Activation('relu'),
+                Dense(n_actions)])
+
+    model.compile(optimizer=Adam(lr=lr), loss='mse')
+
     return model
 
 class Agent(object):
     def __init__(self, alpha, gamma, numActions, epsilon, batchSize,
-                inputDims, epsilonDecrement=0.996, epsilonMin=0.01,
-                memorySize=1000000, fname='model.h5'):
-        self.actionSpace = [i for i in range(numActions)]
+                 inputDims, epsilon_dec=0.996,  epsilonMin=0.01,
+                 memorySize=1000000, fname='dqn_model.h5'):
+        self.action_space = [i for i in range(numActions)]
         self.gamma = gamma
         self.epsilon = epsilon
-        self.epsilonDecrement = epsilonDecrement
-        self.epsilonMin = epsilonMin
-        self.batchSize = batchSize
-        self.fileName = fname
-        self.memory = ReplayBuffer(memorySize, inputDims, numActions, discrete=True)
-        self.eval = createDeepQ(alpha, numActions, inputDims, 64, 64)
+        self.epsilon_dec = epsilon_dec
+        self.epsilon_min = epsilonMin
+        self.batch_size = batchSize
+        self.model_file = fname
+        self.memory = ReplayBuffer(memorySize, inputDims, numActions,
+                                   discrete=True)
+        self.q_eval = build_dqn(alpha, numActions, inputDims, 256, 256)
 
-    def remember(self, state, action, reward, newState, done):
-        self.memory.storeTransitions(state, action, reward, newState, done)
-    
+    def remember(self, state, action, reward, new_state, done):
+        self.memory.store_transition(state, action, reward, new_state, done)
+
     def chooseAction(self, state):
         state = state[np.newaxis, :]
         rand = np.random.random()
         if rand < self.epsilon:
-            action = np.random.choice(self.actionSpace)
+            action = np.random.choice(self.action_space)
         else:
-            actions = self.eval.predict(state)
+            actions = self.q_eval.predict(state)
             action = np.argmax(actions)
-        
+
         return action
 
     def learn(self):
-        if self.memory.memoryCounter > self.batchSize:
-            state, action, reward, newState, done = self.memory.sampleBuffer(self.batchSize)
+        if self.memory.mem_cntr > self.batch_size:
+            state, action, reward, new_state, done = \
+                                          self.memory.sample_buffer(self.batch_size)
 
-            actionValues = np.array(self.actionSpace, dtype=np.int8)
-            actionIndeces = np.dot(action,actionValues)
+            action_values = np.array(self.action_space, dtype=np.int8)
+            action_indices = np.dot(action, action_values)
 
-            eval = self.eval.predict(state)
-            next = self.eval.predict(newState)
-            target = eval.copy()
+            q_eval = self.q_eval.predict(state)
 
-            batchIndex = np.arange(self.batchSize, dtype=np.int32)
+            q_next = self.q_eval.predict(new_state)
 
-            target[batchIndex, actionIndeces] = reward + self.gamma*np.max(next, axis=1)*done
-            
-            _ = self.eval.fit(state,target, verbose=0)
+            q_target = q_eval.copy()
 
-            self.epsilon = self.epsilon*self.epsilonDecrement if self.epsilon > self.epsilonMin else self.epsilonMin
+            batch_index = np.arange(self.batch_size, dtype=np.int32)
+
+            q_target[batch_index, action_indices] = reward + \
+                                  self.gamma*np.max(q_next, axis=1)*done
+
+            _ = self.q_eval.fit(state, q_target, verbose=0)
+
+            self.epsilon = self.epsilon*self.epsilon_dec if self.epsilon > \
+                           self.epsilon_min else self.epsilon_min
+
+    def save_model(self):
+        self.q_eval.save(self.model_file)
+
+    def load_model(self):
+        self.q_eval = load_model(self.model_file)
