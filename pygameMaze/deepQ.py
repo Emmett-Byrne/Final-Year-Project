@@ -54,10 +54,20 @@ def build_dqn(lr, n_actions, input_dims, fc1_dims, fc2_dims):
 
     return model
 
+def build_simpleDqn(lr, n_actions, input_dims, fc1_dims):
+    model = Sequential([
+                Dense(fc1_dims, input_shape=(input_dims,)),
+                Activation('relu'),
+                Dense(n_actions)])
+
+    model.compile(optimizer=Adam(lr=lr), loss='mse')
+
+    return model
+
 class Agent(object):
     def __init__(self, alpha, gamma, numActions, epsilon, batchSize,
                  inputDims, epsilon_dec=0.996,  epsilonMin=0.01,
-                 memorySize=1000000, fname='dqn_model.h5'):
+                 memorySize=1000000, fname='dqn_model.h5', simple=False):
         self.action_space = [i for i in range(numActions)]
         self.gamma = gamma
         self.epsilon = epsilon
@@ -67,7 +77,8 @@ class Agent(object):
         self.model_file = fname
         self.memory = ReplayBuffer(memorySize, inputDims, numActions,
                                    discrete=True)
-        self.q_eval = build_dqn(alpha, numActions, inputDims, 256, 256)
+        if not simple: self.q_eval = build_dqn(alpha, numActions, inputDims, 256, 256)
+        else: self.q_eval = build_simpleDqn(alpha, numActions, inputDims, 256)
 
     def remember(self, state, action, reward, new_state, done):
         self.memory.store_transition(state, action, reward, new_state, done)
