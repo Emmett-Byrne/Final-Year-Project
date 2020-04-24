@@ -278,7 +278,7 @@ def run():
     world = World(50,20)
     world.reset(0)
 
-    #world.run()
+    world.run()
 
     scores = []
     nn = Agent(gamma=0.99, epsilon=0.995, alpha=0.00005, inputDims=15,

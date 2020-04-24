@@ -11,8 +11,6 @@ def runExperiment(difficulty, agent):
     pygame.init()
     world = World(50,20)
 
-    #world.run()
-
     scores = []
     nn = agent
 
@@ -37,12 +35,17 @@ def runExperiment(difficulty, agent):
             ' average score %.2f' % avg_score)
 
     scores = []
+    movesTaken = []
     for i in range(100):
         done = False
         score = 0
         observation = world.reset(difficulty)
+        moveCount = 0
         while not done:
             observation, score, done, info = world.step(nn.chooseAction(observation), False)
+            moveCount += 1
+        if score == 100:
+            movesTaken.append(moveCount)
         scores.append(score)
         print('episode: ', i,'score: %.2f' % score)
 
@@ -51,34 +54,61 @@ def runExperiment(difficulty, agent):
         if score == 100:
             count += 1
 
-    return count, nn
+    averageMove = 0
+    if len(movesTaken) > 0:
+        for x in movesTaken:
+            averageMove += x
+        averageMove /= len(movesTaken)
+
+    return count, averageMove, nn
 
 successRates = []
+averageMoveTaken = []
+successRatesSimple = []
+averageMoveTakenSimple = []
+
 running = True
 difficultyLevel = 0
 startTime = time.perf_counter()
+agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05)
 while running:
-    agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05)
-    success, agent = runExperiment(difficultyLevel, agent)
+    success, average, agent = runExperiment(difficultyLevel, agent)
     successRates.append(success)
-    if success < 50: running = False
+    averageMoveTaken.append(average)
+    if success == 0: running = False
     else: difficultyLevel += 1
 duration = time.perf_counter() - startTime
 highestDifficulty = difficultyLevel
 
-successRatesSimple = []
 running = True
 difficultyLevel = 0
 startTime = time.perf_counter()
+agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05, simple=True)
 while running:
-    agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05, simple=True)
-    success, agent = runExperiment(difficultyLevel, agent)
+    success, average, agent = runExperiment(difficultyLevel, agent)
     successRatesSimple.append(success)
-    if success < 50: running = False
+    averageMoveTakenSimple.append(average)
+    if success == 0: running = False
     else: difficultyLevel += 1
 durationSimple = time.perf_counter() - startTime
 highestDifficultySimple = difficultyLevel
 
+
+print('Duration: ', duration)
+print('HighestDifficulty: ', highestDifficulty)
+print('DurationSimple: ', durationSimple)
+print('HighestDifficultySimple: ', highestDifficultySimple)
+
 graph.plot(range(0, len(successRates)),successRates)
 graph.plot(range(0, len(successRatesSimple)),successRatesSimple)
+graph.xlabel('Dificulty')
+graph.ylabel('Sucess Rate %')
+graph.grid(color='c', linestyle='dotted', linewidth=1)
+graph.show()
+
+graph.plot(range(0, len(averageMoveTaken)),averageMoveTaken)
+graph.plot(range(0, len(averageMoveTakenSimple)),averageMoveTakenSimple)
+graph.xlabel('Dificulty')
+graph.ylabel('average # of moves taken')
+graph.grid(color='c', linestyle='dotted', linewidth=1)
 graph.show()
