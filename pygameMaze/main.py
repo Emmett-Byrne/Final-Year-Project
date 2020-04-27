@@ -19,10 +19,10 @@ def runExperiment(difficulty, agent):
         score = 0
         observation = world.reset(difficulty)
         while not done:
-            action = nn.chooseAction(observation)                           #action = Index position of action taken
-            newObservation, reward, done, info = world.step(action, False)  #observations = Inputs into the network
-                                                                            #reward = floating point val ,negative = bad, positive = good
-                                                                            #done = boolean
+            action = nn.chooseAction(observation)                                   #action = Index position of action taken
+            newObservation, reward, done = world.step(action, render=False)   #observations = Inputs into the network
+                                                                                    #reward = floating point val ,negative = bad, positive = good
+                                                                                    #done = boolean
             score += reward
             nn.remember(observation, action, reward, newObservation, done)
             observation = newObservation
@@ -42,7 +42,7 @@ def runExperiment(difficulty, agent):
         observation = world.reset(difficulty)
         moveCount = 0
         while not done:
-            observation, score, done, info = world.step(nn.chooseAction(observation), False)
+            observation, score, done = world.step(nn.chooseAction(observation), render=False)
             moveCount += 1
         if score == 100:
             movesTaken.append(moveCount)

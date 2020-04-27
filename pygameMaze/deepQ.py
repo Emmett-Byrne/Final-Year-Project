@@ -4,27 +4,22 @@ from keras.optimizers import Adam
 import numpy as np
 
 class ReplayBuffer(object):
-    def __init__(self, memorySize, inputShape, numActions, discrete=False):
+    def __init__(self, memorySize, inputShape, numActions):
         self.memorySize = memorySize
         self.memoryCounter = 0
-        self.discrete = discrete
         self.stateMemory = np.zeros((self.memorySize, inputShape))
         self.newStateMemory = np.zeros((self.memorySize, inputShape))
-        dtype = np.int8 if self.discrete else np.float32
-        self.actionMemory = np.zeros((self.memorySize, numActions), dtype=dtype)
+        self.actionMemory = np.zeros((self.memorySize, numActions), dtype=np.int8)
         self.rewardMemory = np.zeros(self.memorySize)
         self.terminalMemory = np.zeros(self.memorySize, dtype=np.float32)
 
     def storeTransition(self, state, action, reward, newState, done):
-        index = self.memoryCounter % self.memorySize
+        index = self.memoryCounter % self.memorySize #Overrights old memory if we've exceeded the size of our memory
         self.stateMemory[index] = state
         self.newStateMemory[index] = newState
-        if self.discrete:
-            actions = np.zeros(self.actionMemory.shape[1])
-            actions[action] = 1.0
-            self.actionMemory[index] = actions
-        else:
-            self.actionMemory[index] = action
+        actions = np.zeros(self.actionMemory.shape[1])
+        actions[action] = 1.0
+        self.actionMemory[index] = actions
         self.rewardMemory[index] = reward
         self.terminalMemory[index] = 1 - done
         self.memoryCounter += 1
@@ -83,7 +78,7 @@ class Agent(object):
         self.epsilonMin = epsilonMin
         self.batchSize = batchSize
         self.file = fname
-        self.memory = ReplayBuffer(memorySize, inputDims, numActions, discrete=True)
+        self.memory = ReplayBuffer(memorySize, inputDims, numActions)
         if not simple: self.brain = buildQNetwork(alpha, numActions, inputDims, 256, 256)
         else: self.brain = buildSimpleQNetwork(alpha, numActions, inputDims, 256)
 
@@ -115,12 +110,12 @@ class Agent(object):
             prediction = self.brain.predict(state)
             predictionNext = self.brain.predict(newState)
             target = prediction.copy()
-            batchIndex = np.arange(self.batchSize, dtype=np.int32) #creates list to the size of batchSize of type int32
+            batchIndex = np.arange(self.batchSize, dtype=np.int32) #creates list starting at 0 and incrementing to the size of batchSize
 
-            target[batchIndex, actionIndices] = reward + self.gamma*np.max(predictionNext, axis=1)*done
+            target[batchIndex, actionIndices] = reward + self.gamma*np.max(predictionNext, axis=1)*done #reward + (discountFactor)(Action with highest value)(done)
 
             self.brain.fit(state, target, verbose=0)
-            self.epsilon = self.epsilon*self.epsilonDecrement if self.epsilon > self.epsilonMin else self.epsilonMin
+            self.epsilon = self.epsilon*self.epsilonDecrement if self.epsilon > self.epsilonMin else self.epsilonMin #update epsilon
 
     def saveModel(self):
         self.brain.save(self.file)

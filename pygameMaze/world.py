@@ -71,6 +71,7 @@ class World:
                 if y == 0 or y == 1 or y == self.height - 1 or y == self.height-2:
                     self.grid[y][x] = 1
 
+    #clears the area around the starting position and the goal position so that they cannot be walls
     def clearStart(self):
         for y in range(3):
             for x in range(3):
@@ -79,6 +80,7 @@ class World:
             for x in range(3):
                 self.grid[self.goalY - 1 + y][self.goalX - 1 + x] = 0
     
+    #Runs the game to be controled by the player
     def run(self):
         running = True
         while running:
@@ -94,6 +96,7 @@ class World:
             if self.playerX == self.goalX and self.playerY == self.goalY:
                 running = False #VICTORY!!!!
 
+    #resets the world
     def reset(self, dificulty):
         self.actionsTaken = 0
         self.remainingMoves = math.trunc(self.width * 10 + self.height)
@@ -116,8 +119,8 @@ class World:
 
         return np.array(observation, dtype=np.float32)
 
+    #Takes a single action in the world. Used by the neural network
     def step(self, action, render):
-        previous = self.remainingMoves
         previousDistance = self.distanceToGoal()
         moveReward = self.move(action)
         distanceReward = -(self.distanceToGoal() - previousDistance)
@@ -130,7 +133,6 @@ class World:
         if self.playerY == self.goalY and self.playerX == self.goalX:
             done = True
             reward = 100
-        info = {}
         observation = self.getLongSight()
         observation.append(self.playerX)
         observation.append(self.playerY)
@@ -142,7 +144,7 @@ class World:
         if render:
             self.render()
 
-        return np.array(observation, dtype=np.float32), reward, done, info
+        return np.array(observation, dtype=np.float32), reward, done
 
     def handkeInput(self):
         previousDistance = self.distanceToGoal()
@@ -254,7 +256,8 @@ class World:
             self.grid[self.playerY + 1][self.playerX]
         ]
         return sight
-        
+    
+    #Get data for Neural Network
     def getLongSight(self): #13
         sight = [
             self.grid[self.playerY - 2][self.playerX],
@@ -273,6 +276,7 @@ class World:
         ]
         return sight
 
+#This is deprecated old code but you can take it out of the function if you want to run it for manual input.
 def run():
     pygame.init()
     world = World(50,20)
@@ -290,7 +294,7 @@ def run():
             observation = world.reset(4)
             while not done:
                 action = nn.chooseAction(observation)                       #action = whole number
-                observation_, reward, done, info = world.step(action, True) #observations = array of elements between 0 and 1
+                observation_, reward, done = world.step(action, True) #observations = array of elements between 0 and 1
                                                                             #reward = floating point val ,negative = bad, positive = good
                                                                             #done = boolean
                 score += reward
