@@ -19,13 +19,13 @@ def runExperiment(difficulty, agent):
         score = 0
         observation = world.reset(difficulty)
         while not done:
-            action = nn.chooseAction(observation)                        #action = whole number
-            observation_, reward, done, info = world.step(action, False) #observations = array of elements between 0 and 1
-                                                                         #reward = floating point val ,negative = bad, positive = good
-                                                                         #done = boolean
+            action = nn.chooseAction(observation)                           #action = Index position of action taken
+            newObservation, reward, done, info = world.step(action, False)  #observations = Inputs into the network
+                                                                            #reward = floating point val ,negative = bad, positive = good
+                                                                            #done = boolean
             score += reward
-            nn.remember(observation, action, reward, observation_, done)
-            observation = observation_
+            nn.remember(observation, action, reward, newObservation, done)
+            observation = newObservation
             nn.learn()
         
         scores.append(score)
@@ -64,51 +64,57 @@ def runExperiment(difficulty, agent):
 
 successRates = []
 averageMoveTaken = []
+timeTaken = []
 successRatesSimple = []
 averageMoveTakenSimple = []
+timeTakenSimple = []
 
 running = True
 difficultyLevel = 0
-startTime = time.perf_counter()
 agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05)
 while running:
+    timer = time.perf_counter()
     success, average, agent = runExperiment(difficultyLevel, agent)
+    timeTaken.append(time.perf_counter() - timer)
     successRates.append(success)
     averageMoveTaken.append(average)
     if success == 0: running = False
     else: difficultyLevel += 1
-duration = time.perf_counter() - startTime
 highestDifficulty = difficultyLevel
 
 running = True
 difficultyLevel = 0
-startTime = time.perf_counter()
 agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05, simple=True)
 while running:
+    timer = time.perf_counter()
     success, average, agent = runExperiment(difficultyLevel, agent)
+    timeTakenSimple.append(time.perf_counter() - timer)
     successRatesSimple.append(success)
     averageMoveTakenSimple.append(average)
     if success == 0: running = False
     else: difficultyLevel += 1
-durationSimple = time.perf_counter() - startTime
 highestDifficultySimple = difficultyLevel
 
-
-print('Duration: ', duration)
 print('HighestDifficulty: ', highestDifficulty)
-print('DurationSimple: ', durationSimple)
 print('HighestDifficultySimple: ', highestDifficultySimple)
 
 graph.plot(range(0, len(successRates)),successRates)
 graph.plot(range(0, len(successRatesSimple)),successRatesSimple)
-graph.xlabel('Dificulty')
+graph.xlabel('Difficulty')
 graph.ylabel('Sucess Rate %')
 graph.grid(color='c', linestyle='dotted', linewidth=1)
 graph.show()
 
 graph.plot(range(0, len(averageMoveTaken)),averageMoveTaken)
 graph.plot(range(0, len(averageMoveTakenSimple)),averageMoveTakenSimple)
-graph.xlabel('Dificulty')
+graph.xlabel('Difficulty')
 graph.ylabel('average # of moves taken')
+graph.grid(color='c', linestyle='dotted', linewidth=1)
+graph.show()
+
+graph.plot(range(0, len(timeTaken)),timeTaken)
+graph.plot(range(0, len(timeTakenSimple)),timeTakenSimple)
+graph.xlabel('Difficulty')
+graph.ylabel('Time Taken')
 graph.grid(color='c', linestyle='dotted', linewidth=1)
 graph.show()

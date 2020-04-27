@@ -4,61 +4,69 @@ from keras.optimizers import Adam
 import numpy as np
 
 class ReplayBuffer(object):
-    def __init__(self, max_size, input_shape, n_actions, discrete=False):
-        self.mem_size = max_size
-        self.mem_cntr = 0
+    def __init__(self, memorySize, inputShape, numActions, discrete=False):
+        self.memorySize = memorySize
+        self.memoryCounter = 0
         self.discrete = discrete
-        self.state_memory = np.zeros((self.mem_size, input_shape))
-        self.new_state_memory = np.zeros((self.mem_size, input_shape))
+        self.stateMemory = np.zeros((self.memorySize, inputShape))
+        self.newStateMemory = np.zeros((self.memorySize, inputShape))
         dtype = np.int8 if self.discrete else np.float32
-        self.action_memory = np.zeros((self.mem_size, n_actions), dtype=dtype)
-        self.reward_memory = np.zeros(self.mem_size)
-        self.terminal_memory = np.zeros(self.mem_size, dtype=np.float32)
+        self.actionMemory = np.zeros((self.memorySize, numActions), dtype=dtype)
+        self.rewardMemory = np.zeros(self.memorySize)
+        self.terminalMemory = np.zeros(self.memorySize, dtype=np.float32)
 
-    def store_transition(self, state, action, reward, state_, done):
-        index = self.mem_cntr % self.mem_size
-        self.state_memory[index] = state
-        self.new_state_memory[index] = state_
-        # store one hot encoding of actions, if appropriate
+    def storeTransition(self, state, action, reward, newState, done):
+        index = self.memoryCounter % self.memorySize
+        self.stateMemory[index] = state
+        self.newStateMemory[index] = newState
         if self.discrete:
-            actions = np.zeros(self.action_memory.shape[1])
+            actions = np.zeros(self.actionMemory.shape[1])
             actions[action] = 1.0
-            self.action_memory[index] = actions
+            self.actionMemory[index] = actions
         else:
-            self.action_memory[index] = action
-        self.reward_memory[index] = reward
-        self.terminal_memory[index] = 1 - done
-        self.mem_cntr += 1
+            self.actionMemory[index] = action
+        self.rewardMemory[index] = reward
+        self.terminalMemory[index] = 1 - done
+        self.memoryCounter += 1
 
-    def sample_buffer(self, batch_size):
-        max_mem = min(self.mem_cntr, self.mem_size)
-        batch = np.random.choice(max_mem, batch_size)
+    def sampleBuffer(self, batchSize):
+        memorySize = min(self.memoryCounter, self.memorySize)   #If we've filled up our memory and are overrighting old memory we use 
+        batch = np.random.choice(memorySize, batchSize)         #creates a list of size batchsize of random indexes between 0 and memory size
 
-        states = self.state_memory[batch]
-        actions = self.action_memory[batch]
-        rewards = self.reward_memory[batch]
-        states_ = self.new_state_memory[batch]
-        terminal = self.terminal_memory[batch]
+        states = self.stateMemory[batch]
+        actions = self.actionMemory[batch]
+        rewards = self.rewardMemory[batch]
+        newState = self.newStateMemory[batch]
+        terminal = self.terminalMemory[batch]
 
-        return states, actions, rewards, states_, terminal
+        return states, actions, rewards, newState, terminal
 
-def build_dqn(lr, n_actions, input_dims, fc1_dims, fc2_dims):
+#lr = learning rate, 
+#numActions = the number of output nodes
+#inputNodes = the number of input nodes
+#fc1 = the number of nodes in the first fully connected layer
+#fc2 = the number of nodes in the second fully connected layer
+def buildQNetwork(lr, numActions, inputNodes, fc1Nodes, fc2Nodes):
     model = Sequential([
-                Dense(fc1_dims, input_shape=(input_dims,)),
+                Dense(fc1Nodes, input_shape=(inputNodes,)),
                 Activation('relu'),
-                Dense(fc2_dims),
+                Dense(fc2Nodes),
                 Activation('relu'),
-                Dense(n_actions)])
+                Dense(numActions)])
 
     model.compile(optimizer=Adam(lr=lr), loss='mse')
 
     return model
 
-def build_simpleDqn(lr, n_actions, input_dims, fc1_dims):
+#lr = learning rate, 
+#numActions = the number of output nodes
+#inputNodes = the number of input nodes
+#fc1 = the number of nodes in the first fully connected layer
+def buildSimpleQNetwork(lr, numActions, inputNodes, fc1Nodes):
     model = Sequential([
-                Dense(fc1_dims, input_shape=(input_dims,)),
+                Dense(fc1Nodes, input_shape=(inputNodes,)),
                 Activation('relu'),
-                Dense(n_actions)])
+                Dense(numActions)])
 
     model.compile(optimizer=Adam(lr=lr), loss='mse')
 
@@ -66,60 +74,56 @@ def build_simpleDqn(lr, n_actions, input_dims, fc1_dims):
 
 class Agent(object):
     def __init__(self, alpha, gamma, numActions, epsilon, batchSize,
-                 inputDims, epsilon_dec=0.996,  epsilonMin=0.01,
-                 memorySize=1000000, fname='dqn_model.h5', simple=False):
-        self.action_space = [i for i in range(numActions)]
+                 inputDims, epsilonDecrement=0.996,  epsilonMin=0.01,
+                 memorySize=1000000, fname='brain.h5', simple=False):
+        self.actions = [i for i in range(numActions)] #create a list to the size mumActions
         self.gamma = gamma
         self.epsilon = epsilon
-        self.epsilon_dec = epsilon_dec
-        self.epsilon_min = epsilonMin
-        self.batch_size = batchSize
-        self.model_file = fname
-        self.memory = ReplayBuffer(memorySize, inputDims, numActions,
-                                   discrete=True)
-        if not simple: self.q_eval = build_dqn(alpha, numActions, inputDims, 256, 256)
-        else: self.q_eval = build_simpleDqn(alpha, numActions, inputDims, 256)
+        self.epsilonDecrement = epsilonDecrement
+        self.epsilonMin = epsilonMin
+        self.batchSize = batchSize
+        self.file = fname
+        self.memory = ReplayBuffer(memorySize, inputDims, numActions, discrete=True)
+        if not simple: self.brain = buildQNetwork(alpha, numActions, inputDims, 256, 256)
+        else: self.brain = buildSimpleQNetwork(alpha, numActions, inputDims, 256)
 
-    def remember(self, state, action, reward, new_state, done):
-        self.memory.store_transition(state, action, reward, new_state, done)
+    def remember(self, state, action, reward, newState, done):
+        self.memory.storeTransition(state, action, reward, newState, done)
 
     def chooseAction(self, state):
-        state = state[np.newaxis, :]
+        state = state[np.newaxis, :] #converts from 1D list to 2D because that's how the network likes it.
         rand = np.random.random()
+
+        #determine if we take a random action
         if rand < self.epsilon:
-            action = np.random.choice(self.action_space)
+            action = np.random.choice(self.actions) #takes a completely random action
         else:
-            actions = self.q_eval.predict(state)
-            action = np.argmax(actions)
+            actions = self.brain.predict(state)     #gets a value for each action
+            action = np.argmax(actions)             #gets the index of the action with the highest value
 
         return action
 
     def learn(self):
-        if self.memory.mem_cntr > self.batch_size:
-            state, action, reward, new_state, done = \
-                                          self.memory.sample_buffer(self.batch_size)
+        if self.memory.memoryCounter > self.batchSize: #Checks if we've filled up our memory more than our batch size
+            state, action, reward, newState, done = self.memory.sampleBuffer(self.batchSize) #samples a piece of memory
 
-            action_values = np.array(self.action_space, dtype=np.int8)
-            action_indices = np.dot(action, action_values)
+            #actions are stored as a 2D list and here we convert it to a 1D list.
+            #example: [0,0,1,0] is converted to 2, [0,1,0,0] is converted to 1.
+            actionValues = np.array(self.actions, dtype=np.int8)
+            actionIndices = np.dot(action, actionValues)
 
-            q_eval = self.q_eval.predict(state)
+            prediction = self.brain.predict(state)
+            predictionNext = self.brain.predict(newState)
+            target = prediction.copy()
+            batchIndex = np.arange(self.batchSize, dtype=np.int32) #creates list to the size of batchSize of type int32
 
-            q_next = self.q_eval.predict(new_state)
+            target[batchIndex, actionIndices] = reward + self.gamma*np.max(predictionNext, axis=1)*done
 
-            q_target = q_eval.copy()
+            self.brain.fit(state, target, verbose=0)
+            self.epsilon = self.epsilon*self.epsilonDecrement if self.epsilon > self.epsilonMin else self.epsilonMin
 
-            batch_index = np.arange(self.batch_size, dtype=np.int32)
+    def saveModel(self):
+        self.brain.save(self.file)
 
-            q_target[batch_index, action_indices] = reward + \
-                                  self.gamma*np.max(q_next, axis=1)*done
-
-            _ = self.q_eval.fit(state, q_target, verbose=0)
-
-            self.epsilon = self.epsilon*self.epsilon_dec if self.epsilon > \
-                           self.epsilon_min else self.epsilon_min
-
-    def save_model(self):
-        self.q_eval.save(self.model_file)
-
-    def load_model(self):
-        self.q_eval = load_model(self.model_file)
+    def loadModel(self):
+        self.brain = load_model(self.file)
