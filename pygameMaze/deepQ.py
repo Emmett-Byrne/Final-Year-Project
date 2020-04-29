@@ -121,4 +121,6 @@ class Agent(object):
         self.brain.save(self.file)
 
     def loadModel(self):
+        self.brain.summary()
         self.brain = load_model(self.file)
+        self.brain.summary()

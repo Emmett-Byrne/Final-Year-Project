@@ -7,7 +7,7 @@ import time
 from deepQ import Agent
 from world import World
 
-def runExperiment(difficulty, agent):
+def runExperiment(difficulty, agent, render = False):
     pygame.init()
     world = World(50,20)
 
@@ -20,7 +20,7 @@ def runExperiment(difficulty, agent):
         observation = world.reset(difficulty)
         while not done:
             action = nn.chooseAction(observation)                                   #action = Index position of action taken
-            newObservation, reward, done = world.step(action, render=False)   #observations = Inputs into the network
+            newObservation, reward, done = world.step(action, render=render)   #observations = Inputs into the network
                                                                                     #reward = floating point val ,negative = bad, positive = good
                                                                                     #done = boolean
             score += reward
@@ -42,7 +42,7 @@ def runExperiment(difficulty, agent):
         observation = world.reset(difficulty)
         moveCount = 0
         while not done:
-            observation, score, done = world.step(nn.chooseAction(observation), render=False)
+            observation, score, done = world.step(nn.chooseAction(observation), render=render)
             moveCount += 1
         if score == 100:
             movesTaken.append(moveCount)
@@ -62,6 +62,20 @@ def runExperiment(difficulty, agent):
 
     return count, averageMove, nn
 
+#This does not work unfortunately since there seems to be something wrong with loading the model.
+def demonstrateModel(difficulty, agent):
+    agent.loadModel()
+    world = World(50,20)
+    while True:
+        done = False
+        observation = world.reset(difficulty)
+        while not done:
+            observation, score, done = world.step(agent.chooseAction(observation), render=True)
+
+
+agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05)
+#demonstrateModel(0, agent) 
+
 successRates = []
 averageMoveTaken = []
 timeTaken = []
@@ -71,7 +85,6 @@ timeTakenSimple = []
 
 running = True
 difficultyLevel = 0
-agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05)
 while running:
     timer = time.perf_counter()
     success, average, agent = runExperiment(difficultyLevel, agent)
