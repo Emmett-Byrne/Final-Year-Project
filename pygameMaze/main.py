@@ -74,6 +74,7 @@ def demonstrateModel(difficulty, agent):
 
 
 agent = Agent(gamma=0.9, epsilon=0.995, alpha=0.00005, inputDims=15, numActions=4, memorySize=10000, batchSize=32, epsilonMin=0.05)
+runExperiment(4, agent, render=True)
 #demonstrateModel(0, agent) 
 
 successRates = []
